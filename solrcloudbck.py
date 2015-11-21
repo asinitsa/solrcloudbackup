@@ -13,6 +13,8 @@ zk.start()
 data, stat = zk.get("/clusterstate.json")
 json_obj = json.loads(data.decode("utf-8"))
 
+zk.stop()
+
 for collection in json_obj:
     for shard in json_obj[collection]['shards']:
         shard_obj = json_obj[collection]['shards'][shard]
