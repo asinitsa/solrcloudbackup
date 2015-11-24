@@ -19,17 +19,15 @@ class LeaderCore(object):
         self.core_dir = core_dir
 
 
-class SolrCloudBackup:
+class CoreListBuilder:
 
     solr_api_preffix = '/solr/admin/cores?action=STATUS&wt=json&core='
     zk_server_port = '127.0.0.1:2181'
-    bck_dir = '/tmp'
     leader_core_list = []
     clusterstate_json = {}
 
-    def __init__(self, zk_server_port, bck_dir):
+    def __init__(self, zk_server_port):
         self.zk_server_port = zk_server_port
-        self.bck_dir = bck_dir
 
     def get_clusterstate_json(self):
         logging.basicConfig()
@@ -71,17 +69,7 @@ class SolrCloudBackup:
 
                         self.leader_core_list.append(leader_core_obj)
 
-    def backup_solr_cores(self):
-        for core in self.leader_core_list:
-            bck_path = self.bck_dir + '/' + core.collection + '/' + core.shard + '/' + core.shard_range + '/'
-            rsync_cmd = 'rsync -avr --exclude "tlog/" ' + core.node_name + ':' + core.core_dir + ' ' + bck_path
-
-            p = os.popen(rsync_cmd, "r")
-            while 1:
-                line = p.readline()
-                if not line:
-                    break
-                print line
+        return self.leader_core_list
 
 if __name__ == "__main__":
 
@@ -91,10 +79,21 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sb = SolrCloudBackup(zk_server_port=args.zk_server_port, bck_dir=args.backup_dir)
+    clb = CoreListBuilder(zk_server_port=args.zk_server_port)
 
-    sb.get_clusterstate_json()
+    clb.get_clusterstate_json()
 
-    sb.build_cores_definitions()
+    cores = clb.build_cores_definitions()
 
-    sb.backup_solr_cores()
+    bck_dir = args.backup_dir
+
+    for core in cores:
+        bck_path = bck_dir + '/' + core.collection + '/' + core.shard + '/' + core.shard_range + '/'
+        rsync_cmd = 'rsync -avr --exclude "tlog/" ' + core.node_name + ':' + core.core_dir + ' ' + bck_path
+
+        p = os.popen(rsync_cmd, "r")
+        while 1:
+            line = p.readline()
+            if not line:
+                break
+            print line
