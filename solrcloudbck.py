@@ -6,6 +6,7 @@ import os
 import logging
 import json
 import argparse
+import time
 
 class LeaderCore(object):
 
@@ -87,8 +88,20 @@ if __name__ == "__main__":
 
     bck_dir = args.backup_dir
 
+    ts = str(int(time.time()))
+
     for core in cores:
-        bck_path = bck_dir + '/' + core.collection + '/' + core.shard + '/' + core.shard_range + '/'
+        bck_path = bck_dir + '/' + ts + '/' + core.collection + '/' + core.shard + '/' + core.shard_range + '/'
+
+        mkdir_cmd = 'mkdir -p ' + bck_path
+
+        p = os.popen(mkdir_cmd, "r")
+        while 1:
+            line = p.readline()
+            if not line:
+                break
+            print line
+
         rsync_cmd = 'rsync -avr --exclude "tlog/" ' + core.node_name + ':' + core.core_dir + ' ' + bck_path
 
         p = os.popen(rsync_cmd, "r")
