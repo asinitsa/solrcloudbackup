@@ -173,6 +173,8 @@ class SolrCloudBackup:
 
     def restore_from_filesystem_to_server(self):
 
+        options_list = '-arvv --delete '
+
         f_cores_list = self.get_cores_definitions_filesystem()
         s_cores_list = self.get_cores_definitions_server()
 
@@ -181,13 +183,21 @@ class SolrCloudBackup:
         if restore_possible:
             print 'Doing restore...'
 
-            for core in s_cores_list:
-                print core.node_name, core.shard_range, core.collection, core.core_dir
-
-            print ''
-
-            for core in f_cores_list:
-                print core.node_name, core.shard_range, core.collection, core.core_dir
+            for s_core in s_cores_list:
+                for f_core in f_cores_list:
+                    if s_core == f_core:
+                        print 'Restoring  ' + f_core.collection, f_core.shard_range, f_core.core_dir, s_core.collection, s_core.shard_range, s_core.core_dir
+                        rsync_cmd = 'rsync ' + options_list + '' + f_core.core_dir + 'data/' + '  ' + s_core.node_name + ':' + s_core.core_dir + 'data/'
+                        for i in range(1, 5):  # dirty loop, attempt to be consistent
+                            print '-***-'
+                            print f_core.collection, f_core.shard_range, 'iteration', i
+                            print '-***-'
+                            p = os.popen(rsync_cmd, "r")
+                            while 1:
+                                line = p.readline()
+                                if not line:
+                                    break
+                                print line
         else:
             print 'Impossible to restore backup!'
             return False
@@ -198,9 +208,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('zk_server_port', help='zookeeper server and port, default is 127.0.0.1:2181')
     parser.add_argument('backup_dir', help='directory to store backup, default is /tmp')
+    parser.add_argument('action', help='"backup" OR "restore"')
 
     args = parser.parse_args()
 
     clb = SolrCloudBackup(zk_server_port=args.zk_server_port, backup_dir=args.backup_dir)
-    #r = clb.backup_from_server_to_filesystem()
-    r = clb.restore_from_filesystem_to_server()
+
+    if args.action == 'backup':
+        r = clb.backup_from_server_to_filesystem()
+
+    if args.action == 'restore':
+        r = clb.restore_from_filesystem_to_server()
